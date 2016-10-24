@@ -17,6 +17,7 @@ library(lubridate)  # for date manipulation
 library(scales)     # for pretty printing
 library(tidyverse)  # misc
 library(forcats)    # easier factor manipulation
+library(magrittr)   # for more pipes
 ```
 
 The OSHA data can be found at http://ogesdw.dol.gov/views/data_summary.php.
@@ -174,7 +175,6 @@ The startegic codes table is defined as allowing the values:
 
 ```{r strat_info}
 table(strat_codes$prog_type)
-
 ```
 
 Unfortunately, there are a number of inspections that have an undefined `P` 
@@ -343,11 +343,11 @@ gg <- ggplot(filter(dat, as.character(penalty_type) != "penalty_change"), aes(x 
 gg <- gg + scale_x_continuous(trans = "log1p", label=dollar) + facet_grid(penalty_type ~ .)
 gg <- gg + labs(title = "Initial and Current Penalties", caption = "OSHA Violations")
 gg + theme_minimal()
+gg
 
 gg <- ggplot(filter(dat, as.character(penalty_type) == "penalty_change"), aes(x = penalty_type, y = value)) 
-gg <- gg + geom_boxplot()
+gg <- gg + geom_violin()
 gg <- gg + scale_y_continuous(label = dollar)
 gg <- gg + labs(title = "Change in Current vs. Initial Penalties", caption = "OSHA Violations")
 gg + theme_minimal()
-
 ```
