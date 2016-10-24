@@ -36,19 +36,30 @@ using the `feather` package. We'll use only the Avro-saved objects for future
 sessions, skipping the CSV step. This is __much__ faster.
 
 ```{r convert_csvs, eval = FALSE}
-inspect <- read_csv("./data/osha_inspection.csv")
-strat_codes <- read_csv("./data/osha_strategic_codes.csv")
-optional_info <- read_csv("./data/osha_optional_info.csv")
-related_activity <- read_csv("./data/osha_related_activity.csv")
-violations <- read_csv("./data/osha_violation.csv")
+load_data <- function(datatype, load_date) {
+  url_base <- "http://prd-enforce-xfr-02.dol.gov/data_catalog/OSHA/osha_"
+  url <- paste0(url_base, datatype, "_", load_date, ".csv.zip")
+  filename <- file.path("data", paste0("osha_", datatype, ".csv.zip"))
+  if (!file.exists(filename)) {
+    download.file(url, filename)
+  }
+  unzip(filename, exdir = "data")
+  read_csv(gsub(".zip", "", filename))
+}
+
+osha_load_date <- "20161019" # date of OSHA files to load in yyyymmdd format
+variables <- c("inspect", "strat_codes", "optional_info", "related_activity", "violations")
+sources <- c("inspection", "strategic_codes", "optional_info", "related_activity", "violation")
+walk2(variables, sources, ~ {assign(.x, load_data(.y, osha_load_date), envir = .GlobalEnv)})
 ```
 
 Perform some data type munging on the loaded data set, per the data dictionary and 
 exploration.
 
 ```{r data_conversion, eval = FALSE}
-related_activity %>% mutate(rel_health = ifelse("X", TRUE, FALSE),
-                            rel_safety = ifelse("X", TRUE, FALSE)))
+related_activity %<>% mutate(rel_health = rel_health=="X",
+                             rel_safety = rel_safety=="X")
+inspect %<>% mutate(naics_code = as.integer(naics_code))
 ```
 
 ```{r write_feathers, eval = FALSE}
@@ -91,7 +102,8 @@ Census site, convert it into a data frame, and perform some minimal clean up
 ```{r naics}
 url <- "http://www.census.gov/eos/www/naics/2017NAICS/2017_NAICS_Structure.xlsx"
 filename <- "./data/2017_naics.xlsx"
-if (!file.exists(filename)) download.file(url, filename, method = "curl")
+if (!file.exists(filename)) download.file(url, filename, method = "libcurl", 
+                                          mode = "wb")
 naics <- read_excel(filename, skip = 3, 
                     col_names = c("change", "code", "naics_title", rep("blank", 3)), 
                     col_types = c("text", "text", "text", rep("blank", 3)))
