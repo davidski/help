@@ -1,0 +1,8 @@
+# backup files
+*.bak
+
+# R Project files
+.Rproj.user
+
+# Compiled PDFs
+*.pdf

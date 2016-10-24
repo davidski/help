@@ -1,0 +1,115 @@
+---
+title: "Redshift test"
+output: html_notebook
+---
+
+```{r setup}
+library(dplyr)
+library(RPostgreSQL)  # no TLS support
+
+# dplyr only works with RPostgreSQL at the moment
+# devtools::install_github("RcppCore/Rcpp")
+# devtools::install_github("rstats-db/DBI")
+# devtools::install_github("rstats-db/RPostgres")
+#library(RPostgres)
+```
+
+
+```{r}
+pg_dsn <- paste0(
+    'dbname=', 'osha', ' ',
+    'sslmode=require'
+)
+host <-  'tf-redshift-cluster.crcpogt4t1dc.us-west-2.redshift.amazonaws.com'
+port <- 5439
+username <- 'mcp'
+password <- Sys.getenv('RedShift_password')
+con <- dbConnect(RPostgres::Postgres(),
+          dbname='osha', 
+          host=host, 
+          port=port, 
+          password=password, 
+          user=username)
+src <- src_postgres(
+  dbname = 'osha',
+  host = host,
+  port = port,
+  password = password,
+  user = username)
+
+```
+
+```{r determine_inspect_structure}
+structure <- map_df(inspect, ~ max(nchar(.x), na.rm=TRUE)) %>% 
+  gather
+structure
+```
+
+
+```{sql create_tables, connection = con}
+CREATE table inspect(
+  activity_nr       integer not null,
+  reporting_id      integer,
+  state_flag        varchar,
+  estab_name        varchar(100),
+  site_address      varchar(142),
+  site_city         varchar(30),
+  site_state        varchar(18),
+  site_zip          varchar(8),
+  owner_type        varchar(5),
+  owner_code        int,
+  adv_notice        varchar(4),
+  safety_hlth       varchar(8),
+  sic_code          int,
+  naics_code        int,
+  insp_type         varchar(6),
+  insp_score        varchar(6),
+  why_no_insp       varchar(1),
+  union_status      varchar(1),
+  safety_manuf      varchar(1),
+  safety_const      varchar(1),
+  safety_marit      varchar(1),
+  health_manuf      varchar(1),
+  health_const      varchar(1),
+  health_marit      varchar(1),
+  migrant           varchar(1),
+  mail_street       varchar(110),
+  mail_city         varchar(30),
+  mail_state        varchar(2),
+  mail_zip          varchar(5),
+  host_est_key      varchar(8),
+  nr_in_estab       int,
+  open_date         date,
+  case_mod_date     date,
+  close_conf_date   date,
+  close_case_date   date,
+  ld_dt             date,
+  PRIMARY KEY(activity_nr)
+  )
+distkey(activity_nr)
+```
+
+Check the created table structure
+
+```{sql, connection = con, output.var = sql_result}
+SELECT "column", type, encoding, distkey, sortkey
+from pg_table_def where tablename = 'inspect';
+```
+
+
+
+```{r}
+cmd <- paste0("aws sts get-caller-identity --output text --query Account")
+aws_account_id <- system(cmd, intern = TRUE)
+message(paste("Account id", aws_account_id))
+role_name <- c("redshift_s3_reader")
+```
+
+```{sql, connection = con, output.var = sql_result}
+copy inspect
+from 's3://users-severski/davidski/osha/osha_inspection.csv' 
+credentials 'aws_iam_role=arn:aws:iam::?aws_account_id:role/?role_name' 
+csv;
+```
+
+

@@ -1,0 +1,4 @@
+# we want to record that the data dir exists, but not the contents of it
+*
+
+!.gitignore

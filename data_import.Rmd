@@ -1,0 +1,341 @@
+---
+title: "OSHA Exploratory Analysis"
+output:
+  html_notebook:
+    highlight: pygments
+    theme: spacelab
+    toc: yes
+  pdf_document:
+    toc: yes
+---
+Setup - Import libraries
+```{r setup, warning=FALSE, message=FALSE}
+library(feather)    # for data storage
+library(stringr)    # for string manipulation
+library(readxl)     # for Excel import
+library(lubridate)  # for date manipulation
+library(scales)     # for pretty printing
+library(tidyverse)  # misc
+library(forcats)    # easier factor manipulation
+```
+
+The OSHA data can be found at http://ogesdw.dol.gov/views/data_summary.php.
+
+# Convert Data
+
+We've downloaded five data files matching with the tables in the data 
+challenge and placed them in the `data` subdirectory. Now we load them in 
+from CSVs using the `readr` package, which is a faster and more 
+intelligent CSV importer than the base version.
+
+Even with `readr`, this is still a slow process. CSVs are useful for 
+interchange, but  aren't a great file format. A better format is 
+[Apache Avro](https://avro.apache.org/), which is a standard adopted by both 
+the Rstats and Python communities. We save out our data objects in this format 
+using the `feather` package. We'll use only the Avro-saved objects for future 
+sessions, skipping the CSV step. This is __much__ faster.
+
+```{r convert_csvs, eval = FALSE}
+inspect <- read_csv("./data/osha_inspection.csv")
+strat_codes <- read_csv("./data/osha_strategic_codes.csv")
+optional_info <- read_csv("./data/osha_optional_info.csv")
+related_activity <- read_csv("./data/osha_related_activity.csv")
+violations <- read_csv("./data/osha_violation.csv")
+```
+
+Perform some data type munging on the loaded data set, per the data dictionary and 
+exploration.
+
+```{r data_conversion, eval = FALSE}
+related_activity %>% mutate(rel_health = ifelse("X", TRUE, FALSE),
+                            rel_safety = ifelse("X", TRUE, FALSE)))
+```
+
+```{r write_feathers, eval = FALSE}
+write_feather(inspect, "./data/osha_inspection.feather")
+write_feather(violations, "./data/osha_violation.feather")
+write_feather(strat_codes, "./data/osha_strategic_codes.feather")
+write_feather(optional_info, "./data/osha_optional_info.feather")
+write_feather(related_activity, "./data/osha_related_activity.feather")
+```
+
+```{r load_feathers}
+inspect <- read_feather("./data/osha_inspection.feather")
+strat_codes <- read_feather("./data/osha_strategic_codes.feather")
+optional_info <- read_feather("./data/osha_optional_info.feather")
+related_activity <- read_feather("./data/osha_related_activity.feather")
+violations <- read_feather("./data/osha_violation.feather")
+```
+
+The reason for an inspection is defined in the data dictionary. The range of 
+possible values is manualy copied from the data dictionary and used to set a
+reference lookup value for this field.
+
+```{r set_inspect_keys}
+inspect_types <- data_frame(
+  code = c("A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M"), 
+  value = c("Accident", "Complaint", "Referral", "Monitoring", "Variance", 
+            "FollowUp", "Unprog Rel", "Planned", "Prog Related", 
+            "Unprog Other", "Prog Other", "Other-L",  "Fat/Cat")
+)
+inspect_types
+```
+
+## NAICS Data
+
+The US Census department publishes NAICS codes at http://www.census.gov/eos/www/naics/2017NAICS/2017_NAICS_Structure.xlsx. To 
+get this into a referencable object, we pull down the Excel document from the 
+Census site, convert it into a data frame, and perform some minimal clean up 
+(conveting strings to numbers, etc.).
+
+```{r naics}
+url <- "http://www.census.gov/eos/www/naics/2017NAICS/2017_NAICS_Structure.xlsx"
+filename <- "./data/2017_naics.xlsx"
+if (!file.exists(filename)) download.file(url, filename, method = "curl")
+naics <- read_excel(filename, skip = 3, 
+                    col_names = c("change", "code", "naics_title", rep("blank", 3)), 
+                    col_types = c("text", "text", "text", rep("blank", 3)))
+naics <- naics %>% separate_rows(code, sep = "-") %>% 
+  filter(is.na(code) == FALSE) %>% 
+  mutate(naics_title = str_replace(naics_title, 'T$', ""), code = as.numeric(code)) %>% 
+  select(-change, code, naics_title)
+naics
+```
+
+# Notes on the Data
+
++ Data Dictionary is located at https://enforcedata.dol.gov/views/dd_display.php
++ More verbose definitions are located at https://osha.gov/oshstats/est1def.html
+
+
+| Table | Object | Purpose |
+|-------|--------|---------|
+|Inspect | inspect | Individual parent inspection of a company |
+|Violation | violations | Specific violation, (n:1) with Inspect based on `activity_nr` |
+|Related Activity | relatated_activities | Links multiple inspection reports in a parent-child relationship in a activity_nr:rel_act_nr format |
+|Optional Info | optional_info | Seems largely empty. Only the `opt_value` field seems to be populated with anything, and its concents seems to have no value. |
+|Strategic Codes | strat_codes | TBD |
+
+## Violation data
+
+| Column | Notes |
+|--------|-------|
+|viol_type| S=Serious.W=Willful.R=Repeat.O=Other (Serious > Willful > Repeat > Other) ref (http://osha.gov/Publications/fedrites.html)|
+|delete_flag| Acutal values of "X" don't match with "D" in the data dictionary. Should be removed? |
+
+
+# Validate Data
+
+Perform some sanity checks on the data.
+
+## Inspection Data 
+
+Valid state code include all 50  states plus D.C., VI (Virgin Islands), 
+GU (Guam), PR (Puerto Rico).
+
+```{r}
+bad_state_code <- unique(inspect$site_state)[!unique(inspect$site_state) %in% 
+                                               c(state.abb, "DC", "VI", "GU", "PR")]
+filter(inspect, site_state %in% bad_state_code) %>% group_by(site_state) %>% tally(sort = TRUE)
+```
+
+## Violations
+
+Violation data has a `delete _flag` which is supposed to be a "D" but 
+appears to only be an "X", when present. 
+
+```{r}
+table(violations$delete_flag)
+group_by(violations, delete_flag) %>% tally %>% 
+  mutate(pct_of_total = percent(n / sum(n)))
+```
+
+These delete record represent a small, but non-trivial, amount of the total 
+dataset.
+
+## Strategic Codes
+
+The startegic codes table is defined as allowing the values:
++ N=NEP (National Emphasis Program)
++ L=LEP (Local Emphasis Program)
++ S=Strategic Plan Code
+
+```{r strat_info}
+table(strat_codes$prog_type)
+
+```
+
+Unfortunately, there are a number of inspections that have an undefined `P` 
+code. Their meaning is unclear.
+
+```{r explore_ps}
+dat <- filter(strat_codes, prog_type == "P") %>% left_join(inspect)
+group_by(dat, case_mod_date) %>% tally(sort = TRUE)
+```
+Almost all of them are modified with a current date. Does `P` somehow indicate a pending inspection?
+```{r}
+dat$close_case_date %>% na.omit() %>% length()
+```
+
+Most of them have a closure date, so the theory of pending seems unfounded.
+
+# Exploratory Analysis
+
+With the `tibble` package, we get access to the `glimpse` function, as well
+as an enhanced default print.
+
+```{r data_overview}
+glimpse(inspect)
+glimpse(violations)
+```
+
+## Inspect Data
+
+### Reasons for Insepctions
+```{r inspect_reasons}
+left_join(inspect, inspect_types, by = c("insp_type" = "code")) %>% 
+            select(value, open_date) %>% 
+  group_by(open_date = quarter(open_date, with_year = TRUE), value) %>% 
+  tally %>% 
+  ggplot(. , aes(x = open_date, y = n, color = fct_reorder2(value, open_date, n))) + geom_line() -> gg
+gg + theme_minimal() + labs(color = "Inspection Reason")
+```
+
+Hrm. Planned audits have really plummeted. Data not current or are they not 
+being performed? There's also some big spikes that look to be seasonal.
+
+```{r inspect_seasonality}
+dat <- left_join(inspect, inspect_types, by = c("insp_type" = "code")) %>% 
+            select(value, open_date) %>% 
+  mutate(open_date = format(open_date, "%b")) %>% 
+  group_by(open_date, value) %>% 
+  tally
+dat$open_date <- factor(dat$open_date, levels = month.abb)
+dat <- na.omit(dat)
+
+gg <- ggplot(dat , aes(x = open_date, y = n, group = 1))
+gg <- gg + stat_summary(fun.y = "sum", geom = "line", 
+                        aes(group = value, color = fct_reorder2(value, open_date, n))) 
+gg <- gg + scale_y_continuous(label = comma)
+gg + theme_minimal() + labs(color = "Inspection Reason", 
+                            title = "Monthly Totals of Inspection Reasons",
+                            x = "Month",
+                            y = element_blank(),
+                            caption = "OSHA Inspections")
+```
+
+```{r exploratory_graphs}
+dat <- inspect %>% mutate(industry = as.factor(str_match(naics_code, "(\\d{2})\\d+")[,2])) %>% 
+  group_by(industry) %>% tally %>% arrange(desc(n)) %>% filter(is.na(industry) == FALSE)
+gg <- ggplot(dat, aes(x = industry, y = n))
+#gg <- gg + scale_y_log10()
+gg <- gg + geom_bar(stat = "identity")
+gg <- gg + theme_minimal()
+gg
+```
+
+Industry code 23 seems super popular. What is it?
+
+> Code 23 is: `r naics[naics$code == "23", ]$naics_title`
+
+Ah, construction. What are all the categories in construction?
+
+```{r}
+naics %>% filter(str_detect(as.character(.$code), "^23"))
+```
+
+And how many inspections are in each of these construction categories?
+
+```{r}
+inspect %>% filter(str_detect(as.character(.$naics_code), "^23")) %>% 
+  group_by(naics_code, inspect_year = year(open_date)) %>% summarize(inspections = n()) %>% 
+  mutate(pct_by_year = percent(inspections / sum(inspections))) %>% 
+  arrange(desc(inspect_year), desc(inspections)) %>% 
+  left_join(naics, by = c("naics_code" = "code")) %>% 
+  select(naics_title, inspect_year, naics_code, everything())
+
+```
+
+So commerical and roofing are highly inspected industries.
+```{r}
+dat <- inspect %>% mutate(industry = str_match(naics_code, "(\\d{2})\\d+")[,2]) %>% 
+  group_by(industry) %>% tally %>% arrange(desc(n)) %>% filter(is.na(industry) == FALSE)
+dat <- left_join(dat, mutate(naics, code = as.character(code)), by = c("industry" = "code")) %>% 
+  group_by(naics_title) %>% summarize(n = sum(n))
+gg <- ggplot(dat, aes(x = fct_reorder(factor(naics_title), n), y = n))
+#gg <- gg + scale_y_log10()
+gg <- gg + geom_bar(stat = "identity")
+gg <- gg + labs(x = "Industry", y = "Number of Inspections", title = "Inspections per Industry")
+gg <- gg + scale_y_continuous(label = comma) + coord_flip()
+gg <- gg + theme_minimal()
+gg
+```
+
+### Advanced Notices
+
+How have advanced notices of inspections changed over time?
+
+```{r adv_notices}
+dat <- inspect %>% mutate(yr = year(open_date)) %>% 
+  group_by(yr, adv_notice) %>% tally() %>% na.omit()
+gg <- ggplot(dat, aes(x = yr, y = n, color = adv_notice)) + geom_line() + 
+  theme_minimal() + labs(title = "Change in Advanced Notice of Inspections over time", 
+                         caption = "Source: OSHA dataset",
+                         x = "Year",
+                         y = "Number of Inspections") +
+  scale_y_continuous(labels = comma)
+gg
+```
+
+Interesting. It looks like advanced notice wasn't tracked, or not given, prior 
+to about 1982. There's also a big drop of total inspections at the end. We 
+should look at the distribution of inspections over time.
+
+```{r total_inspections}
+dat <- inspect %>% 
+  group_by(open_date = quarter(open_date, with_year = TRUE)) %>% 
+  tally
+
+#gg <- ggplot(inspect, aes(x=open_date, y = n, group=quarter(open_date, with_year = TRUE))) + geom_line(na.rm = TRUE)
+#gg <- gg + scale_x_date(date_breaks = "6 months")
+
+gg <- ggplot(dat, aes(x = open_date, y = n)) + geom_line(na.rm = TRUE)
+gg <- gg + labs(title = "Inspections over Time",
+                subtitle = "Grouped by Quarter",
+                caption = "OSHA Inspection data",
+                x = "Date",
+                y = "Number of Inspections")
+gg + theme_minimal() + geom_smooth(method = "loess", na.rm = TRUE)
+```
+
+Yup. Inspections are down from the late 80s. They've been more or less 
+holding steady over the past decade, though there could be a decreasing 
+trend. The big drop of inspections from 77 - 82 is interesting.
+
+## Violations
+
+Violations have an initial penalty (assessed at the time of report authoring) 
+and a current penalty (presumably a negotiated settlement). Let's look at these
+
+```{r violation_amounts}
+dat <- violations %>%  select(initial_penalty, current_penalty) %>% 
+  na.omit() %>% filter(initial_penalty > 5473 ) %>% 
+  mutate(penalty_change = current_penalty - initial_penalty) %>% 
+  gather(penalty_type)
+
+dat$penalty_type <- factor(dat$penalty_type, levels=c("initial_penalty", 
+                                                      "current_penalty", "penalty_change"))
+gg <- ggplot(filter(dat, as.character(penalty_type) != "penalty_change"), aes(x = value)) + geom_histogram(bins = 50)
+#geom_histogram()
+#+ facet_grid(penalty_type ~ .)
+gg <- gg + scale_x_continuous(trans = "log1p", label=dollar) + facet_grid(penalty_type ~ .)
+gg <- gg + labs(title = "Initial and Current Penalties", caption = "OSHA Violations")
+gg + theme_minimal()
+
+gg <- ggplot(filter(dat, as.character(penalty_type) == "penalty_change"), aes(x = penalty_type, y = value)) 
+gg <- gg + geom_boxplot()
+gg <- gg + scale_y_continuous(label = dollar)
+gg <- gg + labs(title = "Change in Current vs. Initial Penalties", caption = "OSHA Violations")
+gg + theme_minimal()
+
+```
