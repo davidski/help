@@ -30,12 +30,6 @@ con <- dbConnect(RPostgres::Postgres(),
           port=port, 
           password=password, 
           user=username)
-src <- src_postgres(
-  dbname = 'osha',
-  host = host,
-  port = port,
-  password = password,
-  user = username)
 
 ```
 
@@ -77,13 +71,13 @@ CREATE table inspect(
   mail_city         varchar(30),
   mail_state        varchar(2),
   mail_zip          varchar(5),
-  host_est_key      varchar(8),
+  host_est_key      varchar(18),
   nr_in_estab       int,
   open_date         date,
   case_mod_date     date,
   close_conf_date   date,
   close_case_date   date,
-  ld_dt             date,
+  ld_dt             timestamp,
   PRIMARY KEY(activity_nr)
   )
 distkey(activity_nr)
@@ -96,20 +90,84 @@ SELECT "column", type, encoding, distkey, sortkey
 from pg_table_def where tablename = 'inspect';
 ```
 
+Get ARN of role to use for reading from S3.
 
-
-```{r}
+```{r get_s3_reader_arn}
 cmd <- paste0("aws sts get-caller-identity --output text --query Account")
 aws_account_id <- system(cmd, intern = TRUE)
-message(paste("Account id", aws_account_id))
+
 role_name <- c("redshift_s3_reader")
+
+credentials <- paste0("aws_iam_role=arn:aws:iam::", aws_account_id, ":role/", role_name)
+message(paste0("Credentials for S3 Reader are: ", credentials))
 ```
 
 ```{sql, connection = con, output.var = sql_result}
-copy inspect
-from 's3://users-severski/davidski/osha/osha_inspection.csv' 
-credentials 'aws_iam_role=arn:aws:iam::?aws_account_id:role/?role_name' 
-csv;
+COPY INSPECT
+  FROM 's3://users-severski/davidski/osha/osha_inspect.csv' 
+  credentials ?credentials
+  CSV IGNOREHEADER AS 1
+  MAXERROR 1000;
 ```
+
+```{sql, connection = con, output.var = sql_result, exec=FALSE}
+COPY INSPECT
+  FROM 's3://users-severski/davidski/osha/osha_inspect.feather' 
+  credentials ?credentials
+  FORMAT AS AVRO 'auto'
+  NOLOAD;
+```
+
+Show our results.
+
+```{r}
+sql_result
+```
+Show the most recent errors
+
+```{sql check_load, connection = con}
+select starttime, filename, err_reason, line_number,
+  colname, type, col_length, position, raw_field_value,
+  raw_line, err_code
+from stl_load_errors
+order by starttime desc;
+```
+
+Show the first 100 records from the RedShift table
+
+
+```{sql connection = con}
+select TOP 100 * from inspect;
+```
+
+# dplyr
+
+```{r dplyr_setup}
+src <- src_postgres(
+  dbname = 'osha',
+  host = host,
+  port = port,
+  password = password,
+  user = username)
+```
+
+```{r dplyr}
+src_tbls(src)
+dat <- tbl(src, "inspect")
+dat
+```
+
+```{r query_with_dplyr}
+filter(dat, site_state == "WA") %>% 
+  mutate(inspect_year = DATE_PART('year', open_date)) %>% 
+  group_by(inspect_year, site_city) %>% 
+  tally %>% 
+  filter(cume_dist(n)>0.5) %>% 
+  #mutate(freq = n /sum(n)) %>%  
+  arrange(desc(inspect_year), desc(n)) %>% collect
+```
+
+
+
 
 
