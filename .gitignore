@@ -6,3 +6,5 @@
 
 # Compiled PDFs
 *.pdf
+
+*.Rhistory
