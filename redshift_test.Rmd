@@ -15,7 +15,7 @@ library(RPostgreSQL)  # no TLS support
 ```
 
 
-```{r}
+```{r connect_to_redshift}
 pg_dsn <- paste0(
     'dbname=', 'osha', ' ',
     'sslmode=require'
@@ -25,22 +25,114 @@ port <- 5439
 username <- 'mcp'
 password <- Sys.getenv('RedShift_password')
 con <- dbConnect(RPostgres::Postgres(),
-          dbname='osha', 
-          host=host, 
-          port=port, 
-          password=password, 
-          user=username)
+          dbname = 'osha', 
+          host = host, 
+          port = port, 
+          password = password, 
+          user = username)
 
 ```
 
-```{r determine_inspect_structure}
-structure <- map_df(inspect, ~ max(nchar(.x), na.rm=TRUE)) %>% 
-  gather
-structure
+# Load CSVs into Redshift
+
+Get ARN of role to use for reading from S3.
+
+```{r get_s3_reader_arn}
+cmd <- paste0("aws sts get-caller-identity --output text --query Account")
+aws_account_id <- system(cmd, intern = TRUE)
+
+role_name <- c("redshift_s3_reader")
+
+credentials <- paste0("aws_iam_role=arn:aws:iam::", aws_account_id, ":role/", role_name)
+message(paste0("Credentials for S3 Reader are: ", credentials))
 ```
 
+Create a helper function to determine the appropriate SQL structure for a 
+data_frame.
 
-```{sql create_tables, connection = con}
+```{r determine_table_structure}
+find_str <- function(dat) { dat %>% map_df(., 
+                                           ~ data_frame(length = max(nchar(.x), na.rm=TRUE), 
+                                                        classtype = class(.x)), 
+                                           .id = "column_name")
+}
+tables <- c("optional_info", "related_activity", "strat_codes", "violations")
+```
+
+## Inspect
+```{sql create_violations_table, connection = con}
+CREATE table violation(
+  activity_nr       integer not null,
+  citation_id       varchar(7),
+  delete_flag       varchar(1),
+  standard          varchar(33),
+  viol_type         varchar(1),
+  issuance_date     date,
+  abate_date        date,
+  abate_complete    varchar(1),
+  current_penalty   decimal,
+  initial_penalty   decimal,
+  contest_date      date,
+  final_order_date  date,
+  nr_instances      integer,
+  nr_exposed        integer,
+  rec               varchar(1),
+  gravity           varchar(2),
+  emphasis          varchar(1),
+  hazcat            varchar(10),
+  fta_insp_nr       varchar(9),
+  fta_issuance_date varchar(10),
+  fta_penalty       varchar(10),
+  fta_contest_date  varchar(10),
+  fta_final_order_date varchar(10),
+  hazsub1           varchar(4),
+  hazsub2           varchar(4),
+  hazsub3           varchar(4),
+  hazsub4           varchar(4),
+  hazsub5           varchar(4),
+  load_dt           datetime,
+  PRIMARY KEY(activity_nr)
+  )
+distkey(activity_nr)
+```
+```{sql create_strategic_codes_table, connection = con}
+CREATE table strategic_codes(
+  activity_nr       integer not null,
+  prog_type         varchar(1),
+  prog_value        varchar(25),
+  load_dt           datetime,
+  PRIMARY KEY(activity_nr)
+  )
+distkey(activity_nr)
+```
+
+```{sql create_related_activity_table, connection = con}
+CREATE table related_activity(
+  activity_nr       integer not null,
+  rel_type          varchar(1),
+  rel_act_nr        integer,
+  rel_safety        varchar(1),
+  rel_health        varchar(1),
+  load_dt           datetime,
+  PRIMARY KEY(activity_nr)
+  )
+distkey(activity_nr)
+```
+
+```{sql create_optional_info_table, connection = con}
+CREATE table optional_info(
+  activity_nr       integer not null,
+  opt_type          varchar(1),
+  opt_id            integer,
+  opt_value         varchar(50),
+  opt_info_id       varchar(1),
+  load_dt           datetime,
+  PRIMARY KEY(activity_nr)
+  )
+distkey(activity_nr)
+```
+
+```{sql create_inspect_table, connection = con}
 CREATE table inspect(
   activity_nr       integer not null,
   reporting_id      integer,
@@ -83,30 +175,47 @@ CREATE table inspect(
 distkey(activity_nr)
 ```
 
-Check the created table structure
-
-```{sql, connection = con, output.var = sql_result}
-SELECT "column", type, encoding, distkey, sortkey
-from pg_table_def where tablename = 'inspect';
-```
-
-Get ARN of role to use for reading from S3.
-
-```{r get_s3_reader_arn}
-cmd <- paste0("aws sts get-caller-identity --output text --query Account")
-aws_account_id <- system(cmd, intern = TRUE)
-
-role_name <- c("redshift_s3_reader")
-
-credentials <- paste0("aws_iam_role=arn:aws:iam::", aws_account_id, ":role/", role_name)
-message(paste0("Credentials for S3 Reader are: ", credentials))
-```
-
 ```{sql, connection = con, output.var = sql_result}
 COPY INSPECT
   FROM 's3://users-severski/davidski/osha/osha_inspect.csv' 
   credentials ?credentials
   CSV IGNOREHEADER AS 1
+  MAXERROR 1000;
+```
+
+```{sql, connection = con, output.var = sql_result}
+COPY VIOLATION
+  FROM 's3://users-severski/davidski/osha/osha_violation.csv.bz2' 
+  credentials ?credentials
+  CSV IGNOREHEADER AS 1
+  BZIP2
+  MAXERROR 1000;
+```
+
+```{sql, connection = con, output.var = sql_result}
+COPY RELATED_ACTIVITY
+  FROM 's3://users-severski/davidski/osha/osha_related_activity.csv.bz2' 
+  credentials ?credentials
+  CSV IGNOREHEADER AS 1
+  BZIP2
+  MAXERROR 1000;
+```
+
+```{sql, connection = con, output.var = sql_result}
+COPY STRATEGIC_CODES
+  FROM 's3://users-severski/davidski/osha/osha_strategic_codes.csv.bz2' 
+  credentials ?credentials
+  CSV IGNOREHEADER AS 1
+  BZIP2
+  MAXERROR 1000;
+```
+
+```{sql, connection = con, output.var = sql_result}
+COPY OPTIONAL_INFO
+  FROM 's3://users-severski/davidski/osha/osha_optional_info.csv.bz2' 
+  credentials ?credentials
+  CSV IGNOREHEADER AS 1
+  BZIP2
   MAXERROR 1000;
 ```
 
@@ -117,6 +226,15 @@ COPY INSPECT
   FORMAT AS AVRO 'auto'
   NOLOAD;
 ```
+
+Check the created table structure
+
+```{sql, connection = con, output.var = sql_result}
+SELECT "column", type, encoding, distkey, sortkey
+from pg_table_def where tablename = '';
+```
+
+## Check Results
 
 Show our results.
 
@@ -135,12 +253,15 @@ order by starttime desc;
 
 Show the first 100 records from the RedShift table
 
-
 ```{sql connection = con}
 select TOP 100 * from inspect;
 ```
 
-# dplyr
+````{sql connection = con}
+DROP TABLE violations;
+```
+
+# Connect to data with dplyr
 
 ```{r dplyr_setup}
 src <- src_postgres(
@@ -151,23 +272,24 @@ src <- src_postgres(
   user = username)
 ```
 
+Get list of tables. Connect to the inspect table.
+
 ```{r dplyr}
-src_tbls(src)
-dat <- tbl(src, "inspect")
+src_tbls(src)       # list all tables
+dat <- tbl(src, "inspect") # connect to the inspect table
 dat
 ```
+
+Sample query with dplyr
 
 ```{r query_with_dplyr}
 filter(dat, site_state == "WA") %>% 
   mutate(inspect_year = DATE_PART('year', open_date)) %>% 
   group_by(inspect_year, site_city) %>% 
   tally %>% 
-  filter(cume_dist(n)>0.5) %>% 
+  filter(cume_dist(n) > 0.5) %>% 
   #mutate(freq = n /sum(n)) %>%  
   arrange(desc(inspect_year), desc(n)) %>% collect
 ```
-
-
-
 
 
