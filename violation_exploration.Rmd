@@ -1,7 +1,16 @@
 ---
 title: "Violation Exploration"
-output: html_notebook
+output:
+  github_document: default
+  html_notebook: default
 ---
+
+```{r setup}
+library(tidyverse)
+library(feather)
+library(lubridate)
+violations <- read_feather("./data/osha_violation.feather")
+```
 
 Exploring the violation data per a conversation on the meaning of the Standard 
 column.
