@@ -1,0 +1,24 @@
+---
+title: "Violation Exploration"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+filter(violations, viol_type == "S") %>% count(year = year(issuance_date), sort=TRUE) %>% ggplot(aes( x = year, y = n)) + geom_line()
+
+violations %>% mutate(known = grepl("^19", standard)) %>% count(known, standard, sort = TRUE) %>% View
+
+filter(violations, nr_exposed >=1) %>% 
+  mutate(year_issued = year(issuance_date)) %>% 
+  filter(year_issued > 2009) %>% 
+  ggplot(., aes(x=nr_exposed)) + geom_histogram() +
+  facet_grid(. ~ year_issued, scales = "free_x")
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
