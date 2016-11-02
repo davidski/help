@@ -20,7 +20,7 @@ pg_dsn <- paste0(
     'dbname=', 'osha', ' ',
     'sslmode=require'
 )
-host <-  'tf-redshift-cluster.crcpogt4t1dc.us-west-2.redshift.amazonaws.com'
+host <-  'tf-redshift-cluster.cx8afkkusjuc.us-east-1.redshift.amazonaws.com'
 port <- 5439
 username <- 'mcp'
 password <- Sys.getenv('RedShift_password')
@@ -177,54 +177,60 @@ distkey(activity_nr)
 
 ```{sql, connection = con, output.var = sql_result}
 COPY INSPECT
-  FROM 's3://users-severski/davidski/osha/osha_inspect.csv' 
+  FROM 's3://users-severski/davidski/osha/osha_inspection.csv.bz2' 
+  REGION 'us-west-2'
   credentials ?credentials
   CSV IGNOREHEADER AS 1
+  BZIP2
   MAXERROR 1000;
 ```
+
+Load the `violation` table from CSV.
 
 ```{sql, connection = con, output.var = sql_result}
 COPY VIOLATION
   FROM 's3://users-severski/davidski/osha/osha_violation.csv.bz2' 
+  REGION 'us-west-2'
   credentials ?credentials
   CSV IGNOREHEADER AS 1
   BZIP2
   MAXERROR 1000;
 ```
+
+Load the `related_activity` table from CSV.
 
 ```{sql, connection = con, output.var = sql_result}
 COPY RELATED_ACTIVITY
   FROM 's3://users-severski/davidski/osha/osha_related_activity.csv.bz2' 
+  REGION 'us-west-2'
   credentials ?credentials
   CSV IGNOREHEADER AS 1
   BZIP2
   MAXERROR 1000;
 ```
+
+Load the `strategic_codes` table from CSV.
 
 ```{sql, connection = con, output.var = sql_result}
 COPY STRATEGIC_CODES
   FROM 's3://users-severski/davidski/osha/osha_strategic_codes.csv.bz2' 
+  REGION 'us-west-2'
   credentials ?credentials
   CSV IGNOREHEADER AS 1
   BZIP2
   MAXERROR 1000;
 ```
+
+Load the `optional_info` table from CSV.
 
 ```{sql, connection = con, output.var = sql_result}
 COPY OPTIONAL_INFO
   FROM 's3://users-severski/davidski/osha/osha_optional_info.csv.bz2' 
+  REGION 'us-west-2'
   credentials ?credentials
   CSV IGNOREHEADER AS 1
   BZIP2
   MAXERROR 1000;
-```
-
-```{sql, connection = con, output.var = sql_result, exec=FALSE}
-COPY INSPECT
-  FROM 's3://users-severski/davidski/osha/osha_inspect.feather' 
-  credentials ?credentials
-  FORMAT AS AVRO 'auto'
-  NOLOAD;
 ```
 
 Check the created table structure
@@ -257,7 +263,13 @@ Show the first 100 records from the RedShift table
 select TOP 100 * from inspect;
 ```
 
-````{sql connection = con}
+Doing the same thing, but with R code....
+```{r dbi_query}
+dat <- dbGetQuery(con, "select TOP 100 * from inspect;")
+dat
+```
+
+```{sql connection = con, exec=FALSE}
 DROP TABLE violations;
 ```
 
