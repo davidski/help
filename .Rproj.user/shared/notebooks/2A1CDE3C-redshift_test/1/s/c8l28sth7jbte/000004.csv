@@ -1,0 +1,19 @@
+"0","pg_dsn <- paste0("
+"0","    'dbname=', 'osha', ' ',"
+"0","    'sslmode=require'"
+"0",")"
+"0","host <-  'tf-redshift-cluster.cx8afkkusjuc.us-east-1.redshift.amazonaws.com'"
+"0","port <- 5439"
+"0","username <- 'mcp'"
+"0","password <- Sys.getenv('RedShift_password')"
+"0","con <- dbConnect(RPostgres::Postgres(),"
+"0","          dbname = 'osha', "
+"0","          host = host, "
+"0","          port = port, "
+"0","          password = password, "
+"0","          user = username)"
+"2","Error in eval(substitute(expr), envir, enclos) : 
+  could not connect to server: Connection timed out (0x0000274C/10060)
+	Is the server running on host ""tf-redshift-cluster.cx8afkkusjuc.us-east-1.redshift.amazonaws.com"" (52.205.15.232) and accepting
+	TCP/IP connections on port 5439?
+"

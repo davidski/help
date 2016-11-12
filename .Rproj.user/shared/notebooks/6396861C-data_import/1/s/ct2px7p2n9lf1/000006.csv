@@ -1,0 +1,5 @@
+"0","inspect <- read_feather(""./data/osha_inspection.feather"")"
+"0","strat_codes <- read_feather(""./data/osha_strategic_codes.feather"")"
+"0","optional_info <- read_feather(""./data/osha_optional_info.feather"")"
+"0","related_activity <- read_feather(""./data/osha_related_activity.feather"")"
+"0","violations <- read_feather(""./data/osha_violation.feather"")"

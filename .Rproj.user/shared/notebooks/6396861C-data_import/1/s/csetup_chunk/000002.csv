@@ -1,0 +1,8 @@
+"0","library(feather)    # for data storage"
+"0","library(stringr)    # for string manipulation"
+"0","library(readxl)     # for Excel import"
+"0","library(lubridate)  # for date manipulation"
+"0","library(scales)     # for pretty printing"
+"0","library(tidyverse)  # misc"
+"0","library(forcats)    # easier factor manipulation"
+"0","library(magrittr)   # for more pipes"

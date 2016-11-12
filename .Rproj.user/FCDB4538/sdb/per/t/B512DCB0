@@ -1,0 +1,23 @@
+{
+    "collab_server" : "",
+    "contents" : "---\ntitle: \"Violation Exploration\"\noutput: html_notebook\n---\n\nExploring the violation data per a conversation on the meaning of the Standard \ncolumn.\n\n```{r severe_violations}\nfilter(violations, viol_type == \"S\") %>% \n  count(year = year(issuance_date), sort = TRUE) %>% \n  ggplot(aes( x = year, y = n)) + geom_line() +\n  theme_minimal()\n```\n\n```{r std_table}\nviolations %>% mutate(known = grepl(\"^19\", standard)) %>% \n  count(known, standard, sort = TRUE)\n```\n\n```{r}\nfilter(violations, nr_exposed >= 1) %>% \n  mutate(year_issued = year(issuance_date)) %>% \n  filter(year_issued > 2009) %>% \n  ggplot(., aes(x=nr_exposed)) + geom_histogram() +\n  facet_grid(. ~ year_issued, scales = \"free_x\")\n```\n\n",
+    "created" : 1478058330183.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "4088649151",
+    "id" : "B512DCB0",
+    "lastKnownWriteTime" : 1478060289,
+    "last_content_update" : 1478060289860,
+    "path" : "D:/osha/violation_exploration.Rmd",
+    "project_path" : null,
+    "properties" : {
+        "chunk_output_type" : "inline",
+        "marks" : "<:5,52\n>:5,53",
+        "tempName" : "Untitled3"
+    },
+    "relative_order" : 7,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_markdown"
+}

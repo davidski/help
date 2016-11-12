@@ -1,0 +1,21 @@
+{
+    "collab_server" : "",
+    "contents" : "Sys.setenv(\"RedShift_password\" = \"MySuperS3kr1tkey\")\n",
+    "created" : 1477358101077.000,
+    "dirty" : true,
+    "encoding" : "",
+    "folds" : "",
+    "hash" : "3172565000",
+    "id" : "4DFAA158",
+    "lastKnownWriteTime" : 4294967298,
+    "last_content_update" : 1477358128825,
+    "path" : null,
+    "project_path" : null,
+    "properties" : {
+        "tempName" : "Untitled1"
+    },
+    "relative_order" : 4,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

@@ -1,0 +1,2 @@
+"0","dat <- dbGetQuery(con, ""select TOP 100 * from inspect;"")"
+"0","dat"

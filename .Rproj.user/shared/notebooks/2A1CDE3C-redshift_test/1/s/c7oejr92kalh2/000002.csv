@@ -1,0 +1,7 @@
+"0","cmd <- paste0(""aws sts get-caller-identity --output text --query Account"")"
+"0","aws_account_id <- system(cmd, intern = TRUE)"
+"0","role_name <- c(""redshift_s3_reader"")"
+"0","credentials <- paste0(""aws_iam_role=arn:aws:iam::"", aws_account_id, "":role/"", role_name)"
+"0","message(paste0(""Credentials for S3 Reader are: "", credentials))"
+"2","Credentials for S3 Reader are: aws_iam_role=arn:aws:iam::754135023419:role/redshift_s3_reader
+"
