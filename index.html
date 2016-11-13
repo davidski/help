@@ -1,7 +1,7 @@
 <!DOCTYPE HTML>
 <html lang="en">
   <head>
-    <titleOsha Challenge</title>
+    <titleOOSHA Challenge</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <script src="https://code.jquery.com/jquery-3.1.1.min.js"></script>
@@ -11,8 +11,6 @@
 
     <script src="./js/aws-sdk-2.7.0.min.js"></script>
     <script src="./js/cognito.js"></script>
-
-
 
     <link rel="icon" type="image/png" sizes="16x16" href="./img/oshachallenge-16x16.png">
     <link rel="icon" type="image/png" sizes="32x32" href="./img/oshachallenge-32x32.png">
@@ -78,8 +76,13 @@
               </div>
             </div>
         </form>
-        <div class="container-fluid col-sm-4" id="results">
-          Results will go here.
+        <div class="container-fluid col-sm-4">
+            <div class="row">
+                <div class="container"><h1>Predicted score is: <span id="results_output">NA</span></h1></div>
+            </div>    
+            <div class="row">
+                <div class="container" id="debug_output">Debug info will go here.</div>
+            </div>
         </div>
       </div>
     </div>

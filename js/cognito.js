@@ -6,7 +6,6 @@ AWS.config.credentials = new AWS.CognitoIdentityCredentials({
 
 window.onload = function(){
     var button = document.getElementById("predict-button");
-    var results = document.getElementById("results");
     var cognito_id = document.getElementById("cognito_id");
 
     AWS.config.credentials.get(function(err){
@@ -26,7 +25,7 @@ var callPredict = function(){
     AWS.config.region = "us-east-1";
     var ML = new AWS.MachineLearning();
 
-    var params = {
+    var MLparams = {
         MLModelId: "ml-oKHtcVCiEit",
         PredictEndpoint: "https://realtime.machinelearning.us-east-1.amazonaws.com",
         Record: {
@@ -36,16 +35,24 @@ var callPredict = function(){
     var x = document.getElementById("predict-params");
     var i;
     for (i = 0; i < x.length ;i++) {
-        params.Record[x.elements[i].id] = x.elements[i].value;
+        MLparams.Record[x.elements[i].id] = x.elements[i].value;
     }
     
-    ML.predict(params, function(err, data) {
+    ML.predict(MLparams, function(err, data) {
         if (err) {
             results.innerHTML = "ERROR: " + err;
         } else {
-            console.log(data)
-            results.innerHTML = "Contents of params: " + JSON.stringify(params.Record) + "</p>Contents of result: " + JSON.stringify(data);
+            console.log(data);
+            updateResults(MLparams, data);
         }
     });
     console.log("Button function complete!");
+};
+
+var updateResults = function(MLparams, data) {
+    var results = document.getElementById("results_output");
+    var debug_output = document.getElementById("debug_output");
+
+    results.innerHTML = data.Prediction.predictedLabel;
+    debug_output.innerHTML = "Passed parameters are: " + JSON.stringify(MLparams.Record) + "</p>Contents of result: " + JSON.stringify(data);
 };
