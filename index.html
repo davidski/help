@@ -1,0 +1,92 @@
+<!DOCTYPE HTML>
+<html lang="en">
+  <head>
+    <titleOsha Challenge</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://code.jquery.com/jquery-3.1.1.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <link rel="stylesheet" href="css/osha-challenge.css">
+
+    <script src="./js/aws-sdk-2.7.0.min.js"></script>
+    <script src="./js/cognito.js"></script>
+
+
+
+    <link rel="icon" type="image/png" sizes="16x16" href="./img/oshachallenge-16x16.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="./img/oshachallenge-32x32.png">
+    </head>
+
+  <body>
+    <nav class="navbar navbar-default">
+      <div class="container-fluid">
+        <div class="navbar-header">
+          <a href="#" class="navbar-brand"><span class="glyphicon glyphicon-glass"></span></a>
+          <ul class="nav navbar-nav">
+            <li class="active"><a href="#">Predict</a></li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+    <div class="container">
+      <div class = "row" id="cognito_id">
+        ID is not yet defined.
+      </div>
+      <div class="row">
+        
+          <form class="form-horizontal col-sm-8" id="predict-params">
+            <div class="form-group">
+              <label class="control-label col-sm-2" for="site-city">Site City:</label>
+              <div class="col-sm-6">
+                <input type="text" class="form-control" id="site-city" placeholder="Enter parameter">
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="control-label col-sm-2" for="site-state">Site State:</label>
+              <div class="col-sm-6">
+                <input type="text" class="form-control" id="site-state" placeholder="Enter parameter">
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="control-label col-sm-2" for="union_status">Union Status (Y/N/B/A):</label>
+              <div class="col-sm-6">
+                  <input type="text" class="form-control" id="union_status" placeholder="Enter parameter">
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="control-label col-sm-2" for="why_no_insp">Why no inspections?(I/C/B/A/D/F/E/G):</label>
+              <div class="col-sm-6">
+                  <input type="text" class="form-control" id="why_no_insp" placeholder="Enter parameter">
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="control-label col-sm-2" for="naics_code">NAICS code (numeric):</label>
+              <div class="col-sm-6">
+                  <input type="text" class="form-control" id="naics_code" placeholder="Enter parameter">
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="control-label col-sm-2" for="nr_in_establishment">Number in establishment (numeric):</label>
+              <div class="col-sm-6">
+                  <input type="text" class="form-control" id="nr_in_establishment" placeholder="Enter parameter">
+              </div>
+            </div>
+            <div class="form-group">
+              <div class="col-sm-offset-2 col-sm-6">
+                <button type="button" id="predict-button" class="btn btn-default">Predict</button>
+              </div>
+            </div>
+        </form>
+        <div class="container-fluid col-sm-4" id="results">
+          Results will go here.
+        </div>
+      </div>
+    </div>
+    <footer class="footer">
+      <div class="container">
+        <p class="text-muted">&copy; David F. Severski 2016</p>
+      </div>
+    </footer>
+  </body>
+</html>
