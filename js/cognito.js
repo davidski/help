@@ -54,5 +54,6 @@ var updateResults = function(MLparams, data) {
     var debug_output = document.getElementById("debug_output");
 
     results.innerHTML = data.Prediction.predictedLabel;
+    results.className += " bg-success";
     debug_output.innerHTML = "Passed parameters are: " + JSON.stringify(MLparams.Record) + "</p>Contents of result: " + JSON.stringify(data);
 };

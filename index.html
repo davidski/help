@@ -14,13 +14,27 @@
 
     <link rel="icon" type="image/png" sizes="16x16" href="./img/oshachallenge-16x16.png">
     <link rel="icon" type="image/png" sizes="32x32" href="./img/oshachallenge-32x32.png">
+    
+    <style>
+        .row {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display:         flex;
+  flex-wrap: wrap;
+}
+.row > [class*='col-'] {
+  display: flex;
+  flex-direction: column;
+}
+    </style>
     </head>
 
   <body>
     <nav class="navbar navbar-default">
       <div class="container-fluid">
         <div class="navbar-header">
-          <a href="#" class="navbar-brand"><span class="glyphicon glyphicon-glass"></span></a>
+          <a href="#" class="navbar-brand"><span class="glyphicon glyphicon-eye-open"></span></a>
           <ul class="nav navbar-nav">
             <li class="active"><a href="#">Predict</a></li>
           </ul>
@@ -28,12 +42,9 @@
       </div>
     </nav>
     <div class="container">
-      <div class = "row" id="cognito_id">
-        ID is not yet defined.
-      </div>
       <div class="row">
         
-          <form class="form-horizontal col-sm-8" id="predict-params">
+          <form class="form-horizontal col-sm-6" id="predict-params">
             <div class="form-group">
               <label class="control-label col-sm-2" for="site-city">Site City:</label>
               <div class="col-sm-6">
@@ -76,12 +87,20 @@
               </div>
             </div>
         </form>
-        <div class="container-fluid col-sm-4">
-            <div class="row">
+        <div class="container-fluid col-sm-6">
+            <div class="row" style="height: 50%;">
                 <div class="container"><h1>Predicted score is: <span id="results_output">NA</span></h1></div>
             </div>    
             <div class="row">
-                <div class="container" id="debug_output">Debug info will go here.</div>
+                <div class="container">
+                    Debug info:
+                    <pre class="pre-scrollable"><span id="debug_output">NA</span></pre>
+                </div>
+            </div>
+            <div class = "row">
+                <div class="container">
+                    <span id="cognito_id">ID is not yet defined.</span>
+                </div>
             </div>
         </div>
       </div>
