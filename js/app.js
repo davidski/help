@@ -1,7 +1,7 @@
 AWS.config.region = "us-west-2";
 
 AWS.config.credentials = new AWS.CognitoIdentityCredentials({
-    IdentityPoolId: "us-west-2:0e0f0e2d-6d67-4374-83a2-fbedceff9773"
+    IdentityPoolId: "us-west-2:e4b77bdb-3844-4630-86db-2ab02f35749f"
 });
 
 window.onload = function(){
